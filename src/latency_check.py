@@ -7,8 +7,8 @@ import inspect
 
 class LatencyMonitor:
     """
-    مراقب التأخير المحدث: يقيس استقرار التوقيت (Determinism) 
-    عبر اكتشاف دوال النواة تلقائياً وتحليل الانحراف المعياري بالنانو ثانية.
+    Updated Latency Monitor: Measures timing consistency (determinism) 
+    by auto-discovering kernel functions and analyzing nanosecond-level jitter.
     """
 
     def __init__(self, sample_size=5000):
@@ -16,7 +16,7 @@ class LatencyMonitor:
         self.kernel_fn = self._discover_kernel_function()
 
     def _discover_kernel_function(self):
-        """الرادار التقني: العثور على الدالة القابلة للتنفيذ داخل النواة"""
+        """Technical Radar: Locates the executable kernel function within the library."""
         for name, func in inspect.getmembers(pvk, inspect.isbuiltin):
             if not name.startswith('_'):
                 return func
@@ -26,6 +26,7 @@ class LatencyMonitor:
         return None
 
     def measure_precision(self):
+        """Executes high-precision latency benchmarks and handles dynamic signatures."""
         if not self.kernel_fn:
             print("❌ Latency Analysis Failed: Target logic not found.")
             return
@@ -35,24 +36,29 @@ class LatencyMonitor:
         
         latencies = []
 
-        # تسخين المعالج (Warm-up) لضمان استقرار التردد ومنع الـ CPU Throttling
+        # Warm-up phase: Stabilize CPU frequency and minimize initial throttling
         try:
+            # Try passing positional arguments first (for logic like calculate_impact)
+            self.kernel_fn(deficit=1.0, immunity=1.0)
+        except TypeError:
             try:
-                self.kernel_fn(1000)
-            except TypeError:
-                for _ in range(100): self.kernel_fn()
-        except:
-            pass
+                self.kernel_fn()
+            except:
+                pass
 
-        # حلقة القياس الدقيقة
+        # Precision measurement loop
         for _ in range(self.sample_size):
             t1 = time.perf_counter_ns()
             
             try:
-                # تنفيذ أصغر وحدة عمل ممكنة
-                self.kernel_fn() if hasattr(self.kernel_fn, '__call__') else None
+                # Attempt call with expected Penta-V parameters
+                self.kernel_fn(deficit=1.0, immunity=1.0)
             except TypeError:
-                self.kernel_fn(1) # بعض الدوال تتطلب وسيطاً عددياً
+                # Fallback for parameterless or standard functions
+                try:
+                    self.kernel_fn()
+                except:
+                    continue # Skip failed iterations to avoid skewing data
             
             t2 = time.perf_counter_ns()
             latencies.append(t2 - t1)
@@ -61,11 +67,11 @@ class LatencyMonitor:
             self._analyze_latencies(latencies)
 
     def _analyze_latencies(self, data):
-        # حساب الإحصائيات الحيوية للـ ASIC Logic
+        """Analyzes collected latency data to determine silicon-level stability."""
         min_lat = np.min(data)
         max_lat = np.max(data)
         avg_lat = np.mean(data)
-        std_dev = np.std(data) # الانحراف المعياري (العدو الأول للـ ASIC)
+        std_dev = np.std(data) # Standard Deviation: The primary enemy of determinism
         jitter = max_lat - min_lat
 
         print("\n" + "🎯" + " LATENCY & JITTER ANALYSIS " + "🎯")
@@ -76,7 +82,7 @@ class LatencyMonitor:
         print(f"🔹 Standard Dev     : {std_dev:.2f} ns")
         print(f"🔹 Total Jitter     : {jitter} ns")
         
-        # الحكم الهندسي (Verdict)
+        # Engineering Verdict
         if std_dev < 150:
             print("\n✅ Verdict: Ultra-stable Logic. Matches ASIC-level determinism.")
         elif std_dev < 1000:
@@ -86,5 +92,6 @@ class LatencyMonitor:
         print("="*40)
 
 if __name__ == "__main__":
+    # Standard monitor run with 10,000 samples for statistical significance
     monitor = LatencyMonitor(sample_size=10000)
     monitor.measure_precision()
